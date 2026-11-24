@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>이번 주 습관</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 12px; background: #faf8f3; color: #242e2a; font-family: system-ui, -apple-system, sans-serif; }
+    main { width: 100%; max-width: 480px; margin: auto; padding: 18px; background: #fff; border: 1px solid #dedbd1; border-radius: 18px; }
+    .brand { margin: 0 0 8px; color: #55625d; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+    h1 { margin: 0 0 18px; font-size: 21px; line-height: 1.3; }
+    label[for="habit-name"] { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 700; }
+    #habit-name { display: block; width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid #dedbd1; border-radius: 9px; background: #fff; color: #242e2a; font: inherit; font-size: 15px; }
+    #habit-name:focus-visible, input[type="checkbox"]:focus-visible { outline: 3px solid #126454; outline-offset: 3px; }
+    fieldset { min-width: 0; padding: 0; margin: 20px 0 0; border: 0; }
+    legend { padding: 0; margin-bottom: 9px; color: #55625d; font-size: 13px; font-weight: 700; }
+    .days { display: grid; gap: 5px; }
+    .day { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; padding: 7px 10px; border: 1px solid #dedbd1; border-radius: 9px; cursor: pointer; font-size: 14px; }
+    .day.today { border-color: #126454; background: #f0f8f5; font-weight: 700; }
+    .date { min-width: 0; }
+    .today-tag { margin-left: 6px; color: #126454; font-size: 12px; }
+    input[type="checkbox"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 2px; accent-color: #126454; cursor: pointer; }
+    #storage-message { margin: 12px 0 0; color: #884522; font-size: 12px; line-height: 1.5; }
+    #storage-message:empty { display: none; }
+    @media (max-width: 300px) { body { padding: 8px; } main { padding: 14px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">MOBER STUDIO / 03</p>
+    <h1>이번 주 습관</h1>
+    <label for="habit-name">습관 이름</label>
+    <input id="habit-name" type="text" placeholder="예: 물 마시기" autocomplete="off">
+    <fieldset>
+      <legend>이번 주 체크</legend>
+      <div class="days" id="days"></div>
+    </fieldset>
+    <p id="storage-message" role="status" aria-live="polite"></p>
+  </main>
+  <script>
+    // 날짜는 기기의 현지 시간으로만 계산합니다. UTC 변환은 사용하지 않습니다.
+    const nameKey = 'mober-habit-name';
+    const weekPrefix = 'mober-habit-week-';
+    const nameInput = document.getElementById('habit-name');
+    const daysBox = document.getElementById('days');
+    const message = document.getElementById('storage-message');
+    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+    const memory = Object.create(null);
+    let storageAvailable = true;
+    let currentWeek = '';
+    let currentDay = '';
+
+    function warnStorage() {
+      storageAvailable = false;
+      message.textContent = '저장 공간을 사용할 수 없어 이 화면에서만 기록됩니다. 새로고침하거나 닫으면 기록이 사라질 수 있어요.';
+    }
+    // 저장이 차단되어도 메모리에 남겨 화면에서 계속 사용할 수 있습니다.
+    function readValue(key) {
+      if (Object.prototype.hasOwnProperty.call(memory, key)) return memory[key];
+      if (!storageAvailable) return null;
+      try {
+        const value = localStorage.getItem(key);
+        if (value !== null) memory[key] = value;
+        return value;
+      } catch (error) { warnStorage(); return null; }
+    }
+    function writeValue(key, value) {
+      memory[key] = value;
+      if (!storageAvailable) return;
+      try { localStorage.setItem(key, value); }
+      catch (error) { warnStorage(); }
+    }
+    function dateKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    function mondayOf(date) {
+      const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+      return monday;
+    }
+    function loadChecks(week) {
+      try {
+        const parsed = JSON.parse(readValue(weekPrefix + week) || '[]');
+        return Array.from({ length: 7 }, (_, index) => Array.isArray(parsed) && parsed[index] === true);
+      } catch (error) { return Array(7).fill(false); }
+    }
+    function renderWeek() {
+      const now = new Date();
+      const monday = mondayOf(now);
+      currentWeek = dateKey(monday);
+      currentDay = dateKey(now);
+      const checks = loadChecks(currentWeek);
+      daysBox.replaceChildren();
+      for (let index = 0; index < 7; index++) {
+        const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index);
+        const today = dateKey(date) === currentDay;
+        const row = document.createElement('label');
+        row.className = 'day' + (today ? ' today' : '');
+        const text = document.createElement('span');
+        text.className = 'date';
+        text.textContent = `${date.getMonth() + 1}월 ${date.getDate()}일 (${weekdays[date.getDay()]})`;
+        if (today) {
+          const tag = document.createElement('span');
+          tag.className = 'today-tag';
+          tag.textContent = '오늘';
+          text.appendChild(tag);
+        }
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = checks[index];
+        checkbox.addEventListener('change', () => {
+          checks[index] = checkbox.checked;
+          writeValue(weekPrefix + currentWeek, JSON.stringify(checks));
+        });
+        row.append(text, checkbox);
+        daysBox.appendChild(row);
+      }
+    }
+    nameInput.value = readValue(nameKey) || '';
+    nameInput.addEventListener('input', () => writeValue(nameKey, nameInput.value));
+    renderWeek();
+    // 자정을 지나거나 다른 탭에서 돌아오면 오늘과 이번 주를 다시 확인합니다.
+    function refreshDate() {
+      const now = new Date();
+      if (dateKey(now) !== currentDay || dateKey(mondayOf(now)) !== currentWeek) renderWeek();
+    }
+    setInterval(refreshDate, 30000);
+    window.addEventListener('focus', refreshDate);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDate(); });
+  </script>
+</body>
+</html>
