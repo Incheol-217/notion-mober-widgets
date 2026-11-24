@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>발표 타이머</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; background: #faf8f3; color: #242e2a; font-family: system-ui, sans-serif; }
+    .card { width: 100%; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #dedbd1; border-radius: 18px; background: #fff; }
+    .eyebrow { margin: 0 0 10px; color: #126454; font-size: 11px; font-weight: 750; letter-spacing: .12em; }
+    h1 { margin: 0; font-size: 26px; line-height: 1.25; letter-spacing: -.03em; }
+    .description { margin: 8px 0 20px; color: #55625d; font-size: 14px; line-height: 1.5; }
+    .time { margin: 0 0 22px; padding: 20px 8px; border: 1px solid #dedbd1; border-radius: 18px; background: #faf8f3; text-align: center; font-size: clamp(42px, 15vw, 64px); font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+    label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
+    input, button { min-height: 48px; border: 1px solid #dedbd1; border-radius: 12px; font: inherit; }
+    input { display: block; width: 100%; padding: 0 14px; color: #242e2a; background: #fff; font-size: 16px; }
+    input:disabled { color: #55625d; background: #f3f2ed; opacity: 1; }
+    .hint { margin: 7px 0 0; color: #55625d; font-size: 13px; line-height: 1.4; }
+    .status { min-height: 1.4em; margin: 8px 0; color: #126454; font-size: 14px; font-weight: 700; line-height: 1.4; }
+    .status.error { color: #a2372b; }
+    .buttons { display: flex; gap: 8px; }
+    button { flex: 1; min-width: 0; padding: 0 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .start { border-color: #126454; background: #126454; color: #fff; }
+    .reset { background: #fff; color: #242e2a; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    input:focus-visible, button:focus-visible { outline: 3px solid #65a99b; outline-offset: 2px; }
+    @media (max-width: 320px) { body { padding: 12px; } .card { padding: 18px; } }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <p class="eyebrow">MOBER STUDIO / 02</p>
+    <h1>발표 타이머</h1>
+    <p class="description">발표할 시간을 설정해 주세요.</p>
+    <!-- 숫자는 매초 바뀌므로 자동으로 읽지 않습니다. -->
+    <p class="time" id="display" aria-label="남은 시간">00:00</p>
+    <form id="timer-form" novalidate>
+      <label for="minutes">시간 (분)</label>
+      <input id="minutes" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-describedby="hint status">
+      <p class="hint" id="hint">1~99 사이의 정수를 입력해 주세요.</p>
+      <!-- 오류와 완료만 알리고 매초 숫자를 읽지는 않습니다. -->
+      <p class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="buttons">
+        <button class="start" id="start" type="submit">시작</button>
+        <button class="reset" id="reset" type="button">초기화</button>
+      </div>
+    </form>
+  </main>
+  <script>
+    // 필요한 화면 요소를 가져옵니다.
+    const form = document.getElementById('timer-form');
+    const input = document.getElementById('minutes');
+    const display = document.getElementById('display');
+    const status = document.getElementById('status');
+    const start = document.getElementById('start');
+    const reset = document.getElementById('reset');
+    let endTime = 0;
+    let timeoutId = null;
+    let running = false;
+
+    // 남은 초를 두 자리 분과 초로 바꿉니다.
+    function showTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainder = seconds % 60;
+      display.textContent = String(minutes).padStart(2, '0') + ':' + String(remainder).padStart(2, '0');
+    }
+
+    // 호출 횟수를 세지 않고 종료 시각과 현재 시각의 차이를 계산합니다.
+    // 따라서 다른 탭에 다녀오거나 브라우저가 타이머 호출을 늦춰도 보정됩니다.
+    function updateTimer() {
+      if (!running) return;
+      clearTimeout(timeoutId);
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      showTime(remaining);
+      if (remaining === 0) {
+        running = false;
+        timeoutId = null;
+        input.disabled = false;
+        start.disabled = false;
+        status.classList.remove('error');
+        status.textContent = '완료!';
+        return;
+      }
+      timeoutId = setTimeout(updateTimer, 250);
+    }
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (running) return;
+      const value = input.value.trim();
+      if (!value) {
+        status.classList.add('error');
+        status.textContent = '시간을 입력해 주세요.';
+        input.setAttribute('aria-invalid', 'true');
+        input.focus();
+        return;
+      }
+      if (!/^[0-9]+$/.test(value) || Number(value) < 1 || Number(value) > 99) {
+        status.classList.add('error');
+        status.textContent = '1~99 사이의 정수를 입력해 주세요.';
+        input.setAttribute('aria-invalid', 'true');
+        input.focus();
+        return;
+      }
+      input.removeAttribute('aria-invalid');
+      status.classList.remove('error');
+      status.textContent = '';
+      running = true;
+      input.disabled = true;
+      start.disabled = true;
+      endTime = Date.now() + Number(value) * 60 * 1000;
+      updateTimer();
+    });
+
+    // 초기화하면 예약된 갱신도 취소하고 다시 입력할 수 있습니다.
+    reset.addEventListener('click', function () {
+      running = false;
+      clearTimeout(timeoutId);
+      timeoutId = null;
+      endTime = 0;
+      input.disabled = false;
+      start.disabled = false;
+      input.value = '';
+      input.removeAttribute('aria-invalid');
+      status.classList.remove('error');
+      status.textContent = '';
+      showTime(0);
+      input.focus();
+    });
+
+    // 비활성 탭에서 돌아오면 바로 남은 시간을 다시 계산합니다.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && running) updateTimer();
+    });
+  </script>
+</body>
+</html>
