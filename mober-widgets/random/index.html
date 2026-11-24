@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>발표 순서 뽑기 | 모베르</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#242e2a;background:#faf8f3;color-scheme:light;line-height:1.45}*{box-sizing:border-box}body{margin:0;padding:clamp(8px,3vw,18px)}main{max-width:29rem;margin:0 auto;background:#fff;border:1px solid #dedbd1;border-radius:18px;padding:clamp(14px,5vw,24px)}.kicker{color:#126454;letter-spacing:.13em;font-size:.7rem;font-weight:750;margin:0 0 8px}h1{font-size:clamp(1.4rem,6vw,1.9rem);letter-spacing:-.04em;line-height:1.22;margin:0}.intro{margin:6px 0 18px;color:#55625d;font-size:.88rem}label[for=list]{display:block;font-size:.9rem;font-weight:700;margin-bottom:5px}textarea{font:inherit;font-size:1rem;color:inherit;background:#fdfdfa;width:100%;min-height:5.3rem;padding:8px 11px;border:1px solid #a6b4aa;border-radius:9px;resize:vertical;display:block}textarea::placeholder{color:#637168}button{font:inherit;cursor:pointer;border:0;border-radius:9px;padding:9px 14px;font-weight:700;min-height:42px;color:#fff;background:#126454}button:hover{background:#0d5044}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.actions button:first-child{flex:1}.result-box{background:#edf5ee;border:1px solid #cfe1d2;border-radius:12px;padding:10px 14px}.caption{font-size:.74rem;letter-spacing:.06em;color:#476457;font-weight:700;margin:0 0 3px}output{display:block;font-size:clamp(1.16rem,5vw,1.55rem);font-weight:750;color:#17483d;overflow-wrap:anywhere}button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #be6918;outline-offset:2px}
+</style>
+</head>
+<body><main aria-labelledby="title">
+<p class="kicker" lang="en">MOBER STUDIO / 01</p>
+<h1 id="title">발표 순서 뽑기</h1><p class="intro">이름을 한 줄에 하나씩 적고 발표자를 뽑아 보세요.</p>
+<label for="list">후보 명단</label><textarea id="list" rows="3" placeholder="예: 바다&#10;하늘&#10;구름" spellcheck="false"></textarea>
+<div class="actions"><button type="button" id="draw">뽑기</button></div>
+<div class="result-box"><p class="caption" id="caption">뽑기 결과</p><output id="result" aria-labelledby="caption" aria-live="polite" aria-atomic="true">아직 뽑기 전이에요.</output></div>
+</main><script>
+const list=document.getElementById('list'), draw=document.getElementById('draw'), result=document.getElementById('result');
+// 줄마다 양끝 공백을 지우고, 이름이 없는 줄은 뽑기에서 제외합니다.
+function names(){return list.value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);}
+// 0 이상 1 미만의 난수를 후보 배열의 위치로 바꿉니다. 후보가 하나면 항상 0입니다.
+function pick(items){return items[Math.floor(Math.random()*items.length)];}
+draw.addEventListener('click',()=>{
+  const candidates=names();
+  result.textContent=candidates.length?pick(candidates):'후보를 한 명 이상 입력해 주세요.';
+});
+</script></body></html>
